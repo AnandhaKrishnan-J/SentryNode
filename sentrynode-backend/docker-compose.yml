@@ -1,0 +1,21 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    container_name: sentrynode-db
+    restart: always
+
+    environment:
+      POSTGRES_USER: sentry
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: sentrynode
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - sentrynode_data:/var/lib/postgresql/data
+
+volumes:
+  sentrynode_data:
