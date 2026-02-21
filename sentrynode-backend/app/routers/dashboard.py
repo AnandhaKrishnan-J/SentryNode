@@ -1,47 +1,21 @@
-from fastapi import APIRouter
-from datetime import datetime, timezone
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
 
-from app.schemas.dashboard import (
-    DashboardSummary,
-    RecentAlert,
-    RecentAlertsResponse
+from app.db.database import get_db
+from app.core.security import get_current_user
+from app.models.user import User
+from app.services import dashboard_service
+from app.schemas.dashboard import DashboardSummary
+
+
+router = APIRouter(
+    dependencies=[Depends(get_current_user)]
 )
-
-router = APIRouter()
 
 
 @router.get("/summary", response_model=DashboardSummary)
-def get_dashboard_summary():
-    return {
-        "security_status": "UNDER_ATTACK",
-        "active_alerts": 3,
-        "highest_severity": "HIGH",
-        "last_attack_time": datetime.now(timezone.utc),
-        "system_health": "ONLINE"
-    }
-
-
-@router.get("/recent-alerts", response_model=RecentAlertsResponse)
-def get_recent_alerts(limit: int = 5):
-    alerts = [
-        {
-            "alert_id": "a1f93c",
-            "timestamp": datetime.now(timezone.utc),
-            "attack_type": "DoS",
-            "severity": "HIGH",
-            "source_ip": "192.168.1.24",
-            "status": "NEW"
-        },
-        {
-            "alert_id": "b7k21d",
-            "timestamp": datetime.now(timezone.utc),
-            "attack_type": "Port Scan",
-            "severity": "MEDIUM",
-            "source_ip": "192.168.1.17",
-            "status": "NEW"
-        }
-    ]
-
-    return {
-        "alerts": alerts[:limit]
-    }
+def get_dashboard(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return dashboard_service.get_dashboard_summary(db, current_user)

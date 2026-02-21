@@ -1,44 +1,32 @@
-from fastapi import APIRouter, Query, HTTPException, status, Depends
+from fastapi import APIRouter, Query, Depends, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 
 from app.db.database import get_db
-from app.models import Alert as AlertModel
-from app.schemas.alert import Alert, AlertListResponse
+from app.schemas.alert import Alert, AlertListResponse, AlertCreate
+from app.services import alert_service
+from app.core.security import get_current_user
+from app.models.user import User
 
-router = APIRouter()
+
+#Protected Router
+protected_router = APIRouter(
+    dependencies=[Depends(get_current_user)]
+)
+
+#Public router
+public_router = APIRouter()
 
 
-@router.get("", response_model=AlertListResponse)
+
+@protected_router.get("", response_model=AlertListResponse)
 def list_alerts(
-    severity: str | None = Query(None, description="LOW, MEDIUM, HIGH"),
-    resolved: bool | None = Query(None, description="true or false"),
+    severity: str | None = Query(None),
+    resolved: bool | None = Query(None),
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
-    """
-    Returns filtered, paginated list of alerts from database.
-    """
-
-    query = db.query(AlertModel)
-
-    # Apply filters
-    if severity:
-        query = query.filter(AlertModel.severity == severity)
-
-    if resolved is not None:
-        query = query.filter(AlertModel.resolved == resolved)
-
-    total = query.count()
-
-    alerts = (
-        query
-        .order_by(AlertModel.timestamp.desc())
-        .offset(offset)
-        .limit(limit)
-        .all()
-    )
+    total, alerts = alert_service.list_alerts(db, severity, resolved, limit, offset)
 
     return {
         "total": total,
@@ -46,45 +34,25 @@ def list_alerts(
     }
 
 
-@router.get("/{alert_id}", response_model=Alert)
-def get_alert(alert_id: str, db: Session = Depends(get_db)):
-    """
-    Returns full details for a single alert.
-    """
-
-    alert = db.query(AlertModel).filter(AlertModel.id == alert_id).first()
-
-    if not alert:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Alert not found"
-        )
-
-    return alert
+@protected_router.get("/{alert_id}", response_model=Alert)
+def get_alert(
+    alert_id: int,
+    db: Session = Depends(get_db),
+):
+    return alert_service.get_alert_by_id(db, alert_id)
 
 
-@router.patch("/{alert_id}/acknowledge", response_model=Alert)
-def acknowledge_alert(alert_id: str, db: Session = Depends(get_db)):
-    """
-    Marks an alert as resolved (acknowledged).
-    """
+@protected_router.patch("/{alert_id}/acknowledge", response_model=Alert)
+def acknowledge_alert(
+    alert_id: int,
+    db: Session = Depends(get_db),
+):
+    return alert_service.acknowledge_alert(db, alert_id)
 
-    alert = db.query(AlertModel).filter(AlertModel.id == alert_id).first()
-
-    if not alert:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Alert not found"
-        )
-
-    if alert.resolved:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Alert already acknowledged"
-        )
-
-    alert.resolved = True
-    db.commit()
-    db.refresh(alert)
-
-    return alert
+#public 
+@public_router.post("", response_model=Alert, status_code=status.HTTP_201_CREATED)
+def create_alert(
+    payload: AlertCreate,
+    db: Session = Depends(get_db),
+):
+    return alert_service.create_alert(db, payload)

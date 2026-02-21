@@ -1,7 +1,6 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from datetime import datetime, timezone
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import relationship
-
-from datetime import datetime
 
 from app.db.database import Base
 
@@ -10,21 +9,24 @@ class Device(Base):
     __tablename__ = "devices"
 
     id = Column(Integer, primary_key=True, index=True)
-    device_name = Column(String, nullable=False)
-    device_identifier = Column(String, unique=True, nullable=False, index=True)
 
-    location = Column(String, nullable=True)
-    ip_address = Column(String, nullable=True)
+    device_name = Column(String(100), nullable=False)
+    device_identifier = Column(String(100), unique=True, nullable=False, index=True)
 
-    status = Column(String, default="offline")  # online / offline
-    last_seen = Column(DateTime, nullable=True)
+    location = Column(String(100), nullable=True)
+    ip_address = Column(String(50), nullable=True)
 
-    created_at = Column(DateTime, default=datetime.utcnow)
+    status = Column(String(20), default="offline")
+    last_seen = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=True)
 
-    # Relationship: One Device → Many Alerts
-    alerts = relationship(
-        "Alert",
-        back_populates="device",
-        cascade="all, delete"
-    )
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+    # FK FIXED
+    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Relationships
+    owner = relationship("User", back_populates="devices")
+
+    alerts = relationship("Alert", back_populates="device", cascade="all, delete")
+    traffic_logs = relationship("TrafficLog", back_populates="device", cascade="all, delete")
+    system_metrics = relationship("SystemMetric", back_populates="device", cascade="all, delete")

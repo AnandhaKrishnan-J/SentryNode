@@ -1,30 +1,49 @@
 from fastapi import FastAPI
-from app.routers import dashboard, alerts, auth
 
-from app.db.database import Base, engine
-import app.models
+from app.db.database import engine, Base
+import app.models  # Important: ensures models are registered
 
-Base.metadata.create_all(bind=engine)
+from app.routers import users, device, alerts, dashboard
+
 
 app = FastAPI(
     title="SentryNode Backend API",
     version="1.0.0"
 )
 
-app.include_router(
-    dashboard.router,
-    prefix="/api/dashboard",
-    tags=["Dashboard"]
-)
+Base.metadata.create_all(bind=engine)
+
 
 app.include_router(
-    alerts.router,
+    users.router,
+    prefix="/api/users",
+    tags=["Users"]
+)
+
+
+app.include_router(
+    device.router,
+    prefix="/api/devices",
+    tags=["Devices"]
+)
+
+
+
+app.include_router(
+    alerts.protected_router,
     prefix="/api/alerts",
     tags=["Alerts"]
 )
 
 app.include_router(
-    auth.router,
-    prefix="/api/auth",
-    tags=["Auth"]
+    alerts.public_router,
+    prefix="/api/alerts",
+    tags=["Alerts"]
+)
+
+
+app.include_router(
+    dashboard.router,
+    prefix="/api/dashboard",
+    tags=["Dashboard"]
 )

@@ -1,24 +1,33 @@
 from pydantic import BaseModel
-from typing import Literal, List
 from datetime import datetime
+from typing import List, Literal
 
 
-class DashboardSummary(BaseModel):
-    security_status: Literal["SAFE", "UNDER_ATTACK"]
-    active_alerts: int
-    highest_severity: Literal["LOW", "MEDIUM", "HIGH"]
-    last_attack_time: datetime | None
-    system_health: Literal["ONLINE", "DEGRADED", "OFFLINE"]
+class DeviceHealth(BaseModel):
+    device_id: int
+    device_name: str
+    status: Literal["online", "offline"]
+    last_seen: datetime | None
+    cpu_usage: float | None
+    memory_usage: float | None
+    packet_rate: float | None
 
 
 class RecentAlert(BaseModel):
-    alert_id: str
+    id: int
+    alert_type: str
+    severity: str
     timestamp: datetime
-    attack_type: str
-    severity: Literal["LOW", "MEDIUM", "HIGH"]
-    source_ip: str
-    status: Literal["NEW", "ACKNOWLEDGED"]
+    resolved: bool
+
+    class Config:
+        from_attributes = True
 
 
-class RecentAlertsResponse(BaseModel):
-    alerts: List[RecentAlert]
+class DashboardSummary(BaseModel):
+    security_status: Literal["SAFE", "UNDER_ATTACK", "DEGRADED"]
+    active_alerts: int
+    highest_severity: str | None
+    last_attack_time: datetime | None
+    devices: List[DeviceHealth]
+    recent_alerts: List[RecentAlert]
