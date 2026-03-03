@@ -1,17 +1,31 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.database import engine, Base
 import app.models  # Important: ensures models are registered
 
 from app.routers import users, device, alerts, dashboard
 
+import subprocess
 
 app = FastAPI(
     title="SentryNode Backend API",
     version="1.0.0"
 )
 
+@app.on_event("startup")
+def run_migrations():
+    subprocess.run(["alembic", "upgrade", "head"])
+
 Base.metadata.create_all(bind=engine)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # frontend
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 app.include_router(

@@ -1,11 +1,15 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, HTTPException
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
-from app.schemas.device import DeviceCreate, DeviceResponse, DeviceListResponse
+from app.schemas.device import DeviceCreate, DeviceResponse, DeviceListResponse, HeartbeatRequest
 from app.services import device_service
 from app.core.security import get_current_user
 from app.models.user import User
+from datetime import datetime, timezone
+
+
+from app.models import Device
 
 
 router = APIRouter(
@@ -54,3 +58,20 @@ def get_device(
     current_user: User = Depends(get_current_user)
 ):
     return device_service.get_device(db, device_id, current_user)
+
+
+puclic_router = APIRouter()
+
+@router.post("/heartbeat")
+def receive_heartbeat(data: HeartbeatRequest, db: Session = Depends(get_db)):
+
+    try:
+        return device_service.process_heartbeat(
+            db=db,
+            device_id=data.device_id,
+            cpu=data.cpu_usage,
+            memory=data.memory_usage
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))

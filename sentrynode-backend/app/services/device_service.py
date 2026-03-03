@@ -62,18 +62,27 @@ def get_device(db: Session, device_id: int, current_user):
     return device
 
 
-def update_last_seen(db: Session, device_identifier: str):
-    device = db.query(Device).filter(
-        Device.device_identifier == device_identifier
-    ).first()
+def process_heartbeat(db: Session, device_id: str, cpu: float, memory: float):
+
+    device = db.query(Device).filter(Device.device_id == device_id).first()
 
     if not device:
-        raise HTTPException(status_code=404, detail="Device not registered")
+        raise ValueError("Device not found")
 
     device.last_seen = datetime.now(timezone.utc)
-    device.status = "online"
+    device.cpu_usage = cpu
+    device.memory_usage = memory
 
     db.commit()
-    db.refresh(device)
 
-    return device
+    return {"status": "ok"}
+
+def get_device_status(device):
+    from datetime import timedelta, datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    threshold = timedelta(seconds=30)
+
+    if device.last_seen and (now - device.last_seen) <= threshold:
+        return "online"
+    return "offline"

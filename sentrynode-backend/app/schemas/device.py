@@ -26,3 +26,10 @@ class DeviceResponse(DeviceBase):
 class DeviceListResponse(BaseModel):
     total: int
     devices: list[DeviceResponse]
+
+
+class HeartbeatRequest(BaseModel):
+    device_id: str
+    cpu_usage: float
+    memory_usage: float
+    timestamp: datetime

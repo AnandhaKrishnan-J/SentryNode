@@ -1,0 +1,65 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# =========================
+# Virtual Environments
+# =========================
+venv/
+.venv/
+tf-env/
+env/
+
+# =========================
+# Environment Variables
+# =========================
+.env
+
+# =========================
+# ML Artifacts
+# =========================
+*.h5
+*.pkl
+*.joblib
+*.pt
+*.onnx
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# OS Files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# Env files
+.env
+
+# OS
+.DS_Store
+Thumbs.db
+
+# ML model exports
+sentrynode-pi/app/models/autoencoder_saved/

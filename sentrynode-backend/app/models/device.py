@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float
 from sqlalchemy.orm import relationship
 
 from app.db.database import Base
@@ -17,7 +17,14 @@ class Device(Base):
     ip_address = Column(String(50), nullable=True)
 
     status = Column(String(20), default="offline")
-    last_seen = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=True)
+    last_seen = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=True
+    )
+
+    cpu_usage = Column(Float, nullable=True)
+    memory_usage = Column(Float, nullable=True)
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
