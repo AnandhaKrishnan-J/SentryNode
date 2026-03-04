@@ -7,7 +7,7 @@ from datetime import datetime
 # Incoming payload (used by POST /alerts)
 # ==========================================================
 class AlertCreate(BaseModel):
-    device_id: str
+    device_identifier: str
     alert_type: str
     severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
     description: Optional[str] = None
@@ -26,18 +26,17 @@ class AlertCreate(BaseModel):
 # ==========================================================
 class Alert(BaseModel):
     id: int
-    device_id: str
+    device_id: int
     alert_type: str
-    severity: Literal["LOW", "MEDIUM", "HIGH", "CRITICAL"]
-    description: Optional[str] = None
-    source_ip: Optional[str] = None
-    destination_ip: Optional[str] = None
-    protocol: Optional[str] = None
-    confidence_score: Optional[float] = None
+    severity: str
+    description: Optional[str]
+    source_ip: Optional[str]
+    destination_ip: Optional[str]
+    protocol: Optional[str]
+    confidence_score: Optional[float]
     timestamp: datetime
     resolved: bool
 
-    # Enables ORM → Pydantic conversion
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -47,3 +46,4 @@ class Alert(BaseModel):
 class AlertListResponse(BaseModel):
     total: int
     alerts: List[Alert]
+

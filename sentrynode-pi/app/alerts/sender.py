@@ -2,7 +2,7 @@ import requests
 from datetime import datetime, timezone
 from app.config import settings
 
-ALERT_ENDPOINT = f"{settings.BACKEND_URL}/api/alerts"
+ALERT_ENDPOINT = f"{settings.BACKEND_URL}/alerts"
 
 def send_alert(
     source_ip,
@@ -11,6 +11,7 @@ def send_alert(
     error,
     description="ML anomaly detected"
 ):
+
     payload = {
         "device_identifier": settings.DEVICE_ID,
         "alert_type": "ML_ANOMALY",
@@ -19,12 +20,16 @@ def send_alert(
         "source_ip": source_ip,
         "destination_ip": destination_ip,
         "protocol": protocol,
-        "confidence_score": float(error),
-        "timestamp": datetime.now(timezone.utc).isoformat()
+        "confidence_score": float(error)
     }
 
     try:
         response = requests.post(ALERT_ENDPOINT, json=payload, timeout=5)
-        print(f"Alert sent to backend | status={response.status_code}")
+
+        if response.status_code == 201:
+            print("✅ Alert stored in backend")
+        else:
+            print("❌ Alert failed:", response.status_code, response.text)
+
     except Exception as e:
-        print("Failed to send alert:", e)
+        print("Alert send failed:", e)

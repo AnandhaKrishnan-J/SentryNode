@@ -5,15 +5,10 @@ from app.models.user import User
 from app.core.security import hash_password, verify_password, create_access_token
 
 
-from sqlalchemy import or_
-from fastapi import HTTPException, status
-
 def register_user(db: Session, payload):
     existing_user = db.query(User).filter(
-        or_(
-            User.username == payload.username,
-            User.email == payload.email
-        )
+        (User.username == payload.username) |
+        (User.email == payload.email)
     ).first()
 
     if existing_user:
@@ -25,8 +20,7 @@ def register_user(db: Session, payload):
     new_user = User(
         username=payload.username,
         email=payload.email,
-        hashed_password=hash_password(payload.password),
-        role="analyst"
+        hashed_password=hash_password(payload.password)
     )
 
     db.add(new_user)

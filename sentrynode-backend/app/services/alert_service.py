@@ -83,3 +83,11 @@ def create_alert(db: Session, payload):
     db.refresh(new_alert)
 
     return new_alert
+
+
+def clear_all_alerts(db: Session):
+    unresolved = db.query(Alert).filter(Alert.resolved == False).all()
+    for alert in unresolved:
+        alert.resolved = True
+    db.commit()
+    return {"message": f"Cleared {len(unresolved)} alerts"}

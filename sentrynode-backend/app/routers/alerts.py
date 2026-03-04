@@ -42,12 +42,15 @@ def get_alert(
     return alert_service.get_alert_by_id(db, alert_id)
 
 
-@protected_router.patch("/{alert_id}/acknowledge", response_model=Alert)
-def acknowledge_alert(
-    alert_id: int,
+    return alert_service.acknowledge_alert(db, alert_id)
+
+
+@protected_router.post("/clear-all")
+def clear_all_alerts(
     db: Session = Depends(get_db),
 ):
-    return alert_service.acknowledge_alert(db, alert_id)
+    return alert_service.clear_all_alerts(db)
+
 
 #public 
 @public_router.post("", response_model=Alert, status_code=status.HTTP_201_CREATED)

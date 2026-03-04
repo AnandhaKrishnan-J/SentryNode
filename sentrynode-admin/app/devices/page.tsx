@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import Sidebar from "@/components/Sidebar";
+import Link from "next/link";
 
 export default function DevicesPage() {
   const [devices, setDevices] = useState<any[]>([]);
@@ -32,9 +33,12 @@ export default function DevicesPage() {
             <h1 className="text-3xl font-bold text-[#1c1c1e]">Device Management</h1>
             <p className="text-[#8e8e93]">Manage and monitor your Sentry nodes</p>
           </div>
-          <button className="bg-primary text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-primary/30 transition-all hover:scale-[1.02] active:scale-[0.98]">
+          <Link 
+            href="/devices/add"
+            className="bg-primary text-white px-6 py-3 rounded-xl font-semibold shadow-lg shadow-primary/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
+          >
             Add Device
-          </button>
+          </Link>
         </header>
 
         {error && (

@@ -60,5 +60,24 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+
+  getAlerts: (params: { severity?: string; resolved?: boolean; limit?: number; offset?: number } = {}) => {
+    const searchParams = new URLSearchParams();
+    if (params.severity) searchParams.append('severity', params.severity);
+    if (params.resolved !== undefined) searchParams.append('resolved', String(params.resolved));
+    if (params.limit) searchParams.append('limit', String(params.limit));
+    if (params.offset) searchParams.append('offset', String(params.offset));
+    return apiFetch(`/alerts?${searchParams.toString()}`);
+  },
+
+  acknowledgeAlert: (alertId: number) =>
+    apiFetch(`/alerts/${alertId}/acknowledge`, {
+      method: 'PATCH',
+    }),
+
+  clearAllAlerts: () =>
+    apiFetch('/alerts/clear-all', {
+      method: 'POST',
+    }),
 };
 

@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db.database import engine, Base
 import app.models  # Important: ensures models are registered
 
-from app.routers import users, device, alerts, dashboard
+from app.routers import users, device, alerts, dashboard, logs
 
 import subprocess
 
@@ -60,4 +60,11 @@ app.include_router(
     dashboard.router,
     prefix="/api/dashboard",
     tags=["Dashboard"]
+)
+
+
+app.include_router(
+    logs.router,
+    prefix="/api/logs",
+    tags=["Logs"]
 )

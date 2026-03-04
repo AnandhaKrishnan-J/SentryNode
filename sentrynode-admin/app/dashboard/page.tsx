@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import Sidebar from "@/components/Sidebar";
+import Link from "next/link";
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null);
@@ -23,6 +24,23 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
+  const handleClearAll = async () => {
+    try {
+      await api.clearAllAlerts();
+      if (data) {
+        setData({
+          ...data,
+          recent_alerts: [],
+          active_alerts: 0,
+          highest_severity: "NONE",
+          security_status: "SAFE"
+        });
+      }
+    } catch (err: any) {
+      alert(err.message || "Failed to clear alerts");
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen bg-[#fbfbfc]">
@@ -40,6 +58,15 @@ export default function DashboardPage() {
       case "UNDER_ATTACK": return "text-red-600 bg-red-50";
       case "DEGRADED": return "text-yellow-600 bg-yellow-50";
       default: return "text-gray-600 bg-gray-50";
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "SAFE": return "System Protected";
+      case "UNDER_ATTACK": return "Threat Detected";
+      case "DEGRADED": return "Coverage Warning";
+      default: return "Analyzing Status";
     }
   };
 
@@ -65,7 +92,9 @@ export default function DashboardPage() {
             <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${getStatusColor(data?.security_status)}`}>
               {data?.security_status || "UNKNOWN"}
             </div>
-            <p className="text-2xl font-bold mt-2 text-[#1c1c1e]">System Protected</p>
+            <p className="text-2xl font-bold mt-2 text-[#1c1c1e]">
+              {getStatusLabel(data?.security_status)}
+            </p>
           </div>
           <div className="p-6 bg-white rounded-3xl premium-shadow">
             <p className="text-sm font-medium text-[#8e8e93] mb-1">Active Alerts</p>
@@ -85,7 +114,7 @@ export default function DashboardPage() {
           <div className="bg-white rounded-3xl premium-shadow overflow-hidden">
             <div className="px-6 py-5 border-b border-[#e5e5ea] flex justify-between items-center">
               <h3 className="font-bold text-[#1c1c1e]">Monitored Devices</h3>
-              <button className="text-primary text-sm font-medium hover:underline">View All</button>
+              <Link href="/devices" className="text-primary text-sm font-medium hover:underline">View All</Link>
             </div>
             <div className="divide-y divide-[#e5e5ea]">
               {data?.devices?.map((device: any) => (
@@ -110,7 +139,12 @@ export default function DashboardPage() {
           <div className="bg-white rounded-3xl premium-shadow overflow-hidden">
             <div className="px-6 py-5 border-b border-[#e5e5ea] flex justify-between items-center">
               <h3 className="font-bold text-[#1c1c1e]">Recent Alerts</h3>
-              <button className="text-primary text-sm font-medium hover:underline">Clear All</button>
+              <button 
+                onClick={handleClearAll}
+                className="text-primary text-sm font-medium hover:underline"
+              >
+                Clear All
+              </button>
             </div>
             <div className="divide-y divide-[#e5e5ea]">
               {data?.recent_alerts?.map((alert: any) => (

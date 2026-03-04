@@ -1,14 +1,15 @@
 import pandas as pd
 from collections import defaultdict
+
 from app.ml.detector import detect
+from app.alerts.sender import send_alert
 
 CSV_PATH = "misc/train_test_network.csv"
 
-# Load dataset
 df = pd.read_csv(CSV_PATH)
 
 # Sample 100 rows
-df = df.sample(n=100, random_state=42)
+df = df.sample(n=100, random_state=41)
 
 tp = tn = fp = fn = 0
 
@@ -18,7 +19,6 @@ print("Running evaluation on 100 random samples...\n")
 
 for i, row in df.iterrows():
 
-    # Map dataset fields → model features
     sample = {
         "proto": row["proto"],
         "service": row["service"],
@@ -31,7 +31,6 @@ for i, row in df.iterrows():
         "spkts": row["src_pkts"],
         "dpkts": row["dst_pkts"],
 
-        # Missing features
         "sload": 0,
         "dload": 0,
         "sjit": 0,
@@ -48,7 +47,6 @@ for i, row in df.iterrows():
     actual = row["label"]
     attack_type = row.get("type", "unknown")
 
-    # Track attack type stats
     if actual == 1:
         attack_stats[attack_type]["total"] += 1
 
@@ -64,6 +62,16 @@ for i, row in df.iterrows():
 
     if is_anomaly:
         print(f"🚨 Anomaly detected | Row {i} | Error={error:.6f} | Type={attack_type}")
+
+        # Send alert to backend
+        send_alert(
+            source_ip=row.get("src_ip"),
+            destination_ip=row.get("dst_ip"),
+            protocol=row.get("proto"),
+            error=error,
+            description=f"Detected {attack_type} attack"
+        )
+
     else:
         print(f"Normal traffic | Row {i} | Type={attack_type}")
 
@@ -86,18 +94,3 @@ print(f"Precision: {precision:.3f}")
 print(f"Recall: {recall:.3f}")
 print(f"F1 Score: {f1:.3f}")
 print(f"False Positive Rate: {fpr:.3f}")
-
-print("\nConfusion Matrix")
-print("----------------")
-print(f"           Pred Normal   Pred Attack")
-print(f"Actual Normal    {tn}            {fp}")
-print(f"Actual Attack    {fn}            {tp}")
-
-print("\nDetection Rate Per Attack Type")
-print("------------------------------")
-
-for attack, stats in attack_stats.items():
-    total = stats["total"]
-    detected = stats["detected"]
-    rate = detected / total if total else 0
-    print(f"{attack}: {detected}/{total} ({rate:.2%})")
