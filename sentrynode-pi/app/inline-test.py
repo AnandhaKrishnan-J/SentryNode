@@ -1,90 +1,103 @@
-from ml.detector import detect
+import pandas as pd
+from collections import defaultdict
+from app.ml.detector import detect
 
-# -------------------------
-# NORMAL SAMPLES
-# -------------------------
+CSV_PATH = "misc/train_test_network.csv"
 
-normal_samples = [
-    {
-        "proto": "tcp",
-        "service": "-",
-        "state": "FIN",
-        "dur": 0.121478,
-        "spkts": 6,
-        "dpkts": 4,
-        "sbytes": 258,
-        "dbytes": 172,
-        "sload": 14158.94238,
-        "dload": 8495.365234,
-        "sinpkt": 24.2956,
-        "dinpkt": 8.375,
-        "sjit": 30.177547,
-        "djit": 11.830604,
-        "tcprtt": 0,
-        "synack": 0,
-        "ackdat": 0,
-    }
-]
+# Load dataset
+df = pd.read_csv(CSV_PATH)
 
-# -------------------------
-# ATTACK SAMPLES
-# -------------------------
+# Sample 100 rows
+df = df.sample(n=100, random_state=42)
 
-attack_samples = [
-    {
-        "proto": "tcp",
-        "service": "http",
-        "state": "FIN",
-        "dur": 1.221551,
-        "spkts": 10,
-        "dpkts": 8,
-        "sbytes": 1142,
-        "dbytes": 354,
-        "sload": 6732.424805,
-        "dload": 2030.205933,
-        "sinpkt": 135.662667,
-        "dinpkt": 164.314,
-        "sjit": 7980.979821,
-        "djit": 271.56625,
-        "tcprtt": 0.131321,
-        "synack": 0.071352,
-        "ackdat": 0.059969,
-    },
-    {
-        "proto": "udp",
-        "service": "dns",
-        "state": "INT",
-        "dur": 0.000008,
-        "spkts": 2,
-        "dpkts": 0,
-        "sbytes": 114,
-        "dbytes": 0,
-        "sload": 57000000,
+tp = tn = fp = fn = 0
+
+attack_stats = defaultdict(lambda: {"detected": 0, "total": 0})
+
+print("Running evaluation on 100 random samples...\n")
+
+for i, row in df.iterrows():
+
+    # Map dataset fields → model features
+    sample = {
+        "proto": row["proto"],
+        "service": row["service"],
+        "state": row["conn_state"],
+
+        "dur": row["duration"],
+        "sbytes": row["src_bytes"],
+        "dbytes": row["dst_bytes"],
+
+        "spkts": row["src_pkts"],
+        "dpkts": row["dst_pkts"],
+
+        # Missing features
+        "sload": 0,
         "dload": 0,
-        "sinpkt": 0.008,
-        "dinpkt": 0,
         "sjit": 0,
         "djit": 0,
+        "sinpkt": 0,
+        "dinpkt": 0,
         "tcprtt": 0,
         "synack": 0,
-        "ackdat": 0,
+        "ackdat": 0
     }
-]
 
-# -------------------------
-# RUN TEST
-# -------------------------
-
-print("\n--- NORMAL TESTS ---")
-for sample in normal_samples:
     is_anomaly, error = detect(sample)
-    print("Error:", error)
-    print("Predicted anomaly:", is_anomaly)
-    print("-" * 40)
 
-print("\n--- ATTACK TESTS ---")
-for sample in attack_samples:
-    is_anomaly, error = detect(sample)
-    print("Error:", error)
-    print("Predicted anomaly:", is_anomaly)
-    print("-" * 40)
+    actual = row["label"]
+    attack_type = row.get("type", "unknown")
+
+    # Track attack type stats
+    if actual == 1:
+        attack_stats[attack_type]["total"] += 1
+
+    if actual == 1 and is_anomaly:
+        tp += 1
+        attack_stats[attack_type]["detected"] += 1
+    elif actual == 0 and not is_anomaly:
+        tn += 1
+    elif actual == 0 and is_anomaly:
+        fp += 1
+    elif actual == 1 and not is_anomaly:
+        fn += 1
+
+    if is_anomaly:
+        print(f"🚨 Anomaly detected | Row {i} | Error={error:.6f} | Type={attack_type}")
+    else:
+        print(f"Normal traffic | Row {i} | Type={attack_type}")
+
+print("\n======================")
+print("Evaluation Results")
+print("======================")
+
+print(f"TP: {tp}")
+print(f"TN: {tn}")
+print(f"FP: {fp}")
+print(f"FN: {fn}")
+
+precision = tp / (tp + fp) if (tp + fp) else 0
+recall = tp / (tp + fn) if (tp + fn) else 0
+f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0
+fpr = fp / (fp + tn) if (fp + tn) else 0
+
+print("\nMetrics:")
+print(f"Precision: {precision:.3f}")
+print(f"Recall: {recall:.3f}")
+print(f"F1 Score: {f1:.3f}")
+print(f"False Positive Rate: {fpr:.3f}")
+
+print("\nConfusion Matrix")
+print("----------------")
+print(f"           Pred Normal   Pred Attack")
+print(f"Actual Normal    {tn}            {fp}")
+print(f"Actual Attack    {fn}            {tp}")
+
+print("\nDetection Rate Per Attack Type")
+print("------------------------------")
+
+for attack, stats in attack_stats.items():
+    total = stats["total"]
+    detected = stats["detected"]
+    rate = detected / total if total else 0
+    print(f"{attack}: {detected}/{total} ({rate:.2%})")

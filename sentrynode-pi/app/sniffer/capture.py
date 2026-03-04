@@ -2,6 +2,7 @@ from scapy.all import sniff
 from app.sniffer.parser import parse_packet
 from app.config import settings
 
+
 def start_sniffing(packet_handler):
 
     def handle(pkt):
@@ -9,4 +10,13 @@ def start_sniffing(packet_handler):
         if parsed:
             packet_handler(parsed)
 
-    sniff(iface=settings.INTERFACE, prn=handle, store=False)
+    try:
+        sniff(
+            iface=settings.INTERFACE,
+            prn=handle,
+            store=False,
+            filter="tcp or udp",
+            promisc=True
+        )
+    except KeyboardInterrupt:
+        print("Sniffer stopped.")

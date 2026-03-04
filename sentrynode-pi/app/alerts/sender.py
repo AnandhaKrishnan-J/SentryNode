@@ -1,18 +1,30 @@
 import requests
 from datetime import datetime, timezone
-from config import settings
+from app.config import settings
 
-def send_alert(flow, error):
+ALERT_ENDPOINT = f"{settings.BACKEND_URL}/api/alerts"
 
+def send_alert(
+    source_ip,
+    destination_ip,
+    protocol,
+    error,
+    description="ML anomaly detected"
+):
     payload = {
-        "type": "ML_ANOMALY",
-        "source_ip": flow.get("src_ip", "unknown"),
+        "device_identifier": settings.DEVICE_ID,
+        "alert_type": "ML_ANOMALY",
         "severity": "HIGH",
-        "details": f"Reconstruction error: {error}",
+        "description": description,
+        "source_ip": source_ip,
+        "destination_ip": destination_ip,
+        "protocol": protocol,
+        "confidence_score": float(error),
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
     try:
-        requests.post(settings.BACKEND_URL + "/api/alerts", json=payload, timeout=5)
+        response = requests.post(ALERT_ENDPOINT, json=payload, timeout=5)
+        print(f"Alert sent to backend | status={response.status_code}")
     except Exception as e:
-        print("Alert send failed:", e)
+        print("Failed to send alert:", e)

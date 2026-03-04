@@ -1,19 +1,13 @@
+# app/ml/detector.py
+
 import numpy as np
-import joblib
-from tensorflow.keras.models import load_model
+from app.ml.model_loader import load_artifacts
 
-# Load once at startup
-model = load_model("models/autoencoder.h5", compile=False)
-scaler = joblib.load("models/scaler.pkl")
-encoders = joblib.load("models/encoders.pkl")
+model, scaler, encoders, threshold = load_artifacts()
 
-with open("models/threshold.txt", "r") as f:
-    # threshold = float(f.read().strip())
-    threshold = 0.002
+CATEGORICAL_FEATURES = ["proto", "service", "state"]
 
-categorical_features = ["proto", "service", "state"]
-
-numerical_features = [
+NUMERICAL_FEATURES = [
     "dur", "sbytes", "dbytes",
     "spkts", "dpkts",
     "sload", "dload",
@@ -22,29 +16,50 @@ numerical_features = [
     "tcprtt", "synack", "ackdat"
 ]
 
-def encode(col, value):
-    encoder = encoders[col]
-    if value in encoder.classes_:
-        return encoder.transform([value])[0]
-    return -1
+SELECTED_FEATURES = CATEGORICAL_FEATURES + NUMERICAL_FEATURES
 
-def build_vector(flow):
-    vector = []
 
-    for col in categorical_features:
-        vector.append(encode(col, flow[col]))
+def encode_features(flow_dict):
+    encoded_dict = flow_dict.copy()
 
-    for col in numerical_features:
-        vector.append(flow[col])
+    for col in CATEGORICAL_FEATURES:
+        value = str(flow_dict[col])
 
-    return np.array(vector).reshape(1, -1)
+        if value in encoders[col].classes_:
+            encoded_value = encoders[col].transform([value])[0]
+        else:
+            # Fallback to first known class safely
+            fallback = encoders[col].classes_[0]
+            encoded_value = encoders[col].transform([fallback])[0]
 
-def detect(flow):
-    vector = build_vector(flow)
-    scaled = scaler.transform(vector)
-    reconstructed = model.predict(scaled, verbose=0)
-    error = np.mean((scaled - reconstructed) ** 2)
+        encoded_dict[col] = encoded_value
 
-    print("threshold" , threshold)
+    return encoded_dict
 
-    return error > threshold, error
+
+def prepare_vector(flow_dict):
+    encoded_dict = encode_features(flow_dict)
+
+    vector = [encoded_dict[f] for f in SELECTED_FEATURES]
+
+    vector = np.array(vector, dtype=float).reshape(1, -1)
+
+    vector_scaled = scaler.transform(vector)
+
+    # Safety check
+    if vector_scaled.shape[1] != model.input_shape[1]:
+        raise ValueError("Feature dimension mismatch with trained model")
+
+    return vector_scaled
+
+
+def detect(flow_dict):
+    vector_scaled = prepare_vector(flow_dict)
+
+    reconstruction = model.predict(vector_scaled, verbose=0)
+
+    error = float(np.mean(np.square(vector_scaled - reconstruction)))
+
+    is_anomaly = error > threshold
+
+    return is_anomaly, error
