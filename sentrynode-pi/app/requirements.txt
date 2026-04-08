@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-scapy
-requests
-pydantic
-python-dotenv
-scikit-learn==1.6.1
