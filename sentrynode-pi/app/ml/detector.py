@@ -1,7 +1,9 @@
 # app/ml/detector.py
 
 import numpy as np
+import tflite_runtime.interpreter as tflite
 from app.ml.model_loader import load_artifacts
+from pathlib import Path
 
 CATEGORICAL_FEATURES = ["proto", "service", "state"]
 
@@ -16,25 +18,48 @@ NUMERICAL_FEATURES = [
 
 SELECTED_FEATURES = CATEGORICAL_FEATURES + NUMERICAL_FEATURES
 
-THRESHOLD =  0.002963997375048398
 
-# Lazy load (better)
-_model = None
+# ---------------- PATH ---------------- #
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+MODEL_PATH = BASE_DIR / "models" / "autoencoder.tflite"
+
+
+# ---------------- GLOBALS ---------------- #
+
 _scaler = None
 _encoders = None
 _threshold = None
 
+_interpreter = None
+_input_details = None
+_output_details = None
+
+
+# ---------------- LOAD ---------------- #
 
 def get_artifacts():
-    global _model, _scaler, _encoders, _threshold
+    global _scaler, _encoders, _threshold
+    global _interpreter, _input_details, _output_details
 
-    if _model is None:
-        _model, _scaler, _encoders, _threshold = load_artifacts()
+    if _interpreter is None:
+        # Load scaler + encoders + threshold
+        _scaler, _encoders, _threshold = load_artifacts()
 
-    return _model, _scaler, _encoders, _threshold
+        # Load TFLite model
+        _interpreter = tflite.Interpreter(model_path=str(MODEL_PATH))
+        _interpreter.allocate_tensors()
+
+        _input_details = _interpreter.get_input_details()
+        _output_details = _interpreter.get_output_details()
+
+        print("✅ TFLite model loaded")
+
+    return _scaler, _encoders, _threshold
 
 
-# Safe encoding
+# ---------------- ENCODING ---------------- #
+
 def encode_features(flow_dict, encoders):
     encoded_dict = flow_dict.copy()
 
@@ -46,7 +71,6 @@ def encode_features(flow_dict, encoders):
         if value in encoder.classes_:
             encoded_value = encoder.transform([value])[0]
         else:
-            # safer fallback → assign 0
             encoded_value = 0
 
         encoded_dict[col] = encoded_value
@@ -54,8 +78,9 @@ def encode_features(flow_dict, encoders):
     return encoded_dict
 
 
-def prepare_vector(flow_dict, scaler, encoders, model):
+# ---------------- VECTOR ---------------- #
 
+def prepare_vector(flow_dict, scaler, encoders):
     encoded_dict = encode_features(flow_dict, encoders)
 
     vector = []
@@ -64,31 +89,43 @@ def prepare_vector(flow_dict, scaler, encoders, model):
         value = encoded_dict.get(f, 0.0)
         vector.append(float(value))
 
-    vector = np.array(vector, dtype=float).reshape(1, -1)
+    vector = np.array(vector, dtype=np.float32).reshape(1, -1)
 
     vector_scaled = scaler.transform(vector)
 
-    # safety check
-    if vector_scaled.shape[1] != model.input_shape[1]:
-        raise ValueError("Feature dimension mismatch with trained model")
+    # Updated safety check (no TF model now)
+    if vector_scaled.shape[1] != len(SELECTED_FEATURES):
+        raise ValueError("Feature dimension mismatch")
 
-    return vector_scaled
+    return vector_scaled.astype(np.float32)
 
+
+# ---------------- DETECTION ---------------- #
 
 def detect(flow_dict):
     try:
-        model, scaler, encoders, threshold = get_artifacts()
+        scaler, encoders, threshold = get_artifacts()
 
-        # 🔥 FIX: ensure threshold is valid
-        if threshold is None:
-            print("[WARNING] Threshold is None, using default")
-            threshold = 1.0
+        #if threshold is None:
+        threshold = 0.002963997375048398 * 6
 
-        vector_scaled = prepare_vector(flow_dict, scaler, encoders, model)
+        # ✅ Explicit narrowing for Pylance
+        interpreter = _interpreter
+        input_details = _input_details
+        output_details = _output_details
 
-        reconstruction = model.predict(vector_scaled, verbose=0)
+        if interpreter is None or input_details is None or output_details is None:
+            raise RuntimeError("TFLite interpreter not initialized")
 
-        error = float(np.mean(np.square(vector_scaled - reconstruction)))
+        vector = prepare_vector(flow_dict, scaler, encoders)
+
+        interpreter.set_tensor(input_details[0]['index'], vector)
+        interpreter.invoke()
+        reconstruction = interpreter.get_tensor(output_details[0]['index'])
+
+        error = float(np.mean(np.square(vector - reconstruction)))
+
+        print(f"[Debug] Error = {error:.6f}, {threshold :.6f}")
 
         is_anomaly = error > threshold
 

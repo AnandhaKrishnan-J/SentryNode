@@ -37,3 +37,5 @@ scapy
 requests
 python-dotenv
 scikit-learn==1.6.1
+
+sudo /home/sentry/.pyenv/versions/sentry-env/bin/python -m app.main

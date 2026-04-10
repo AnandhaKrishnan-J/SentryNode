@@ -7,13 +7,13 @@ load_dotenv()
 class Settings:
 
     # ===== Network =====
-    INTERFACE = os.getenv("INTERFACE", "eth0")
+    INTERFACE = os.getenv("INTERFACE", "wlan0")
 
     # ===== Backend =====
     BACKEND_URL = os.getenv("BACKEND_URL", "http://192.168.0.1:8000/api")
 
-    ALERT_ENDPOINT = f"{BACKEND_URL}/api/alerts"
-    HEARTBEAT_ENDPOINT = f"{BACKEND_URL}/api/devices/heartbeat"
+    ALERT_ENDPOINT = f"{BACKEND_URL}/alerts"
+    HEARTBEAT_ENDPOINT = f"{BACKEND_URL}/devices/heartbeat"
 
     DEVICE_ID = os.getenv("DEVICE_ID", "pi-node-002")
 

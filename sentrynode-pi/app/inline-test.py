@@ -54,7 +54,7 @@ def main():
     df = pd.read_csv(CSV_PATH)
 
     # Sample 100 rows
-    df = df.sample(n=100, random_state=41)
+    df = df.sample(n=100, random_state=67)
 
     tp = tn = fp = fn = 0
     attack_stats = defaultdict(lambda: {"detected": 0, "total": 0})
